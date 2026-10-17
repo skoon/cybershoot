@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
-import { GAME_W, GAME_H, MAX_ENERGY } from '../logic.js';
+import { GAME_W, GAME_H, MAX_ENERGY, applyEnergyPickup } from '../logic.js';
 import { TILESET, MAP, BACKGROUNDS } from '../assets.js';
 import { createInput } from '../input.js';
 import Player from '../player.js';
-import { createBulletGroup } from '../weapons.js';
+import { createBulletGroup, killBullet, expireBullets } from '../weapons.js';
 
 const HUD_FONT = { fontFamily: 'monospace', fontSize: '10px', color: '#c8f7ff' };
 
@@ -43,11 +43,16 @@ export default class Level extends Phaser.Scene {
 
     this.playerBullets = createBulletGroup(this, 40);
     this.enemyBullets = createBulletGroup(this, 60);
-    // (Task 7 adds enemy/crate groups here; Task 6 adds pickups.)
+    this.pickups = this.physics.add.group({ allowGravity: false, immovable: true });
+    // (Task 7 adds enemy/crate groups here.)
 
     this.spawnObjects();
     this.physics.add.collider(this.player, this.ground);
-    // (Tasks 6–8 add colliders/overlaps here.)
+    this.physics.add.collider(this.playerBullets, this.ground, b => killBullet(b));
+    this.physics.add.collider(this.enemyBullets, this.ground, b => killBullet(b), b => !b.ignoreGround);
+    this.physics.add.overlap(this.player, this.enemyBullets, (p, b) => { if (b.active && this.hurtPlayer()) killBullet(b); });
+    this.physics.add.overlap(this.player, this.pickups, (p, item) => this.collect(item));
+    // (Tasks 7–8 add colliders/overlaps here.)
 
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.createHud();
@@ -71,7 +76,8 @@ export default class Level extends Phaser.Scene {
       switch (type) {
         case 'player_start': break;
         case 'boss_arena': this.arena = this.ctx.arena = new Phaser.Geom.Rectangle(o.x, o.y, o.width, o.height); break;
-        // (Tasks 6–7 add cases here.)
+        case 'energy': this.spawnPickup('energy', o.x, mid); break;
+        // (Task 7 adds enemy and crate cases here.)
         default: console.warn(`Unknown object type "${type}" at ${o.x},${o.y}; skipped`);
       }
     }
@@ -98,7 +104,9 @@ export default class Level extends Phaser.Scene {
     const c = this.controls.read();
     if (c.mutePressed) this.sound.mute = !this.sound.mute;
     this.player.update(c);
-    // (Task 6 adds bullet expiry; Task 8 adds the boss trigger/update here.)
+    expireBullets(this.playerBullets, time, this.cameras.main.worldView);
+    expireBullets(this.enemyBullets, time, this.cameras.main.worldView);
+    // (Task 8 adds the boss trigger/update here.)
     for (const { bg, scrollFactor } of this.parallax) bg.tilePositionX = this.cameras.main.scrollX * scrollFactor;
     if (this.player.y > this.map.heightInPixels + 32) this.endRun(false, 300);
     this.updateHud();
@@ -110,6 +118,33 @@ export default class Level extends Phaser.Scene {
     this.cameras.main.shake(100, 0.006);
     if (this.player.energy <= 0) this.endRun(false, 900);
     return true;
+  }
+
+  spawnPickup(kind, x, y) {
+    const item = this.pickups.create(x, y, 'pickup-' + kind);
+    item.kind = kind;
+    this.tweens.add({ targets: item, y: y - 4, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    return item;
+  }
+
+  collect(item) {
+    if (item.kind === 'energy') {
+      const r = applyEnergyPickup(this.player.energy);
+      if (!r.collected) return; // at max: leave it for later
+      this.player.energy = r.energy;
+    } else {
+      this.player.weapon = item.kind;
+    }
+    this.sound.play('sfx-pickup');
+    item.destroy();
+  }
+
+  // Pierce bullets keep flying but damage each target only once.
+  bulletHits(b, target) {
+    if (!b.active || b.hits.has(target)) return;
+    b.hits.add(target);
+    if (!b.pierce) killBullet(b);
+    target.hit(b.damage);
   }
 
   onKilled(e) {

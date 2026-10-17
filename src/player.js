@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
-import { START_ENERGY } from './logic.js';
+import { START_ENERGY, aimAngle, spreadAngles } from './logic.js';
 import { ENTITIES } from './assets.js';
+import { WEAPONS, fireBullet } from './weapons.js';
 
 // Tuning knobs: playtest and adjust.
 export const RUN_SPEED = 140;
@@ -10,6 +11,7 @@ export const DASH_SPEED = 320;
 export const DASH_MS = 200;
 export const DASH_COOLDOWN_MS = 600;
 export const IFRAME_MS = 1000;
+const MUZZLE = { x: 12, y: -2, upX: 2, upY: -16 }; // offsets from sprite centre: tune to the art
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, bullets) {
@@ -47,7 +49,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       if (!c.jump && body.velocity.y < 0 && !this.jumpCut) { body.setVelocityY(body.velocity.y * JUMP_CUT); this.jumpCut = true; }
       if (c.dashPressed && now >= this.dashReadyAt) this.startDash(onFloor);
     }
-    this.shootIfReady?.(c, now); // added in Task 6
+    this.shootIfReady(c, now);
 
     this.setFlipX(this.facing < 0);
     this.setAlpha(now < this.invulnUntil && Math.floor(now / 60) % 2 ? 0.3 : 1);
@@ -75,6 +77,18 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.inDash = false;
     this.body.setSize(b.w, b.h).setOffset(b.ox, b.oy);
     this.body.setAllowGravity(true);
+  }
+
+  shootIfReady(c, now) {
+    const w = WEAPONS[this.weapon];
+    if (!c.shoot || now < this.lastShotAt + w.cooldown) return;
+    this.lastShotAt = now;
+    const x = this.x + this.facing * (c.up ? MUZZLE.upX : MUZZLE.x);
+    const y = this.y + (c.up ? MUZZLE.upY : MUZZLE.y);
+    for (const a of spreadAngles(aimAngle(this.facing, c.up), w.count, w.stepDeg)) {
+      fireBullet(this.bullets, w.texture, x, y, a, w.speed, { damage: w.damage, pierce: w.pierce });
+    }
+    this.scene.sound.play('sfx-shot', { volume: 0.3 });
   }
 
   // Each hit costs one energy pack. Dash and post-hit i-frames ignore hits.

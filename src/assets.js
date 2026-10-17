@@ -14,7 +14,7 @@ export const IMAGES = {
   'bg-far': 'assets/bg/far.png',
   'bg-mid': 'assets/bg/mid.png',
   'bg-near': 'assets/bg/near.png',
-  crate: { w: 16, h: 16, color: 0x6b4f2a },
+  crate: { w: 20, h: 40, color: 0x6b4f2a }, // tall enough that muzzle-height shots (y-2 from sprite centre) hit it
   'pickup-spread': { w: 10, h: 10, color: 0x00ff9c },
   'pickup-laser': { w: 10, h: 10, color: 0xff2bd6 },
   'pickup-energy': { w: 8, h: 12, color: 0x00f0ff },

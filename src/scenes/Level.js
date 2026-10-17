@@ -3,6 +3,7 @@ import { GAME_W, GAME_H, MAX_ENERGY, applyEnergyPickup } from '../logic.js';
 import { TILESET, MAP, BACKGROUNDS } from '../assets.js';
 import { createInput } from '../input.js';
 import Player from '../player.js';
+import { Soldier, Drone, Turret, Crate } from '../enemies.js';
 import { createBulletGroup, killBullet, expireBullets } from '../weapons.js';
 
 const HUD_FONT = { fontFamily: 'monospace', fontSize: '10px', color: '#c8f7ff' };
@@ -44,7 +45,8 @@ export default class Level extends Phaser.Scene {
     this.playerBullets = createBulletGroup(this, 40);
     this.enemyBullets = createBulletGroup(this, 60);
     this.pickups = this.physics.add.group({ allowGravity: false, immovable: true });
-    // (Task 7 adds enemy/crate groups here.)
+    this.enemies = this.physics.add.group({ runChildUpdate: true });
+    this.crates = this.physics.add.group({ runChildUpdate: true });
 
     this.spawnObjects();
     this.physics.add.collider(this.player, this.ground);
@@ -52,7 +54,12 @@ export default class Level extends Phaser.Scene {
     this.physics.add.collider(this.enemyBullets, this.ground, b => killBullet(b), b => !b.ignoreGround);
     this.physics.add.overlap(this.player, this.enemyBullets, (p, b) => { if (b.active && this.hurtPlayer()) killBullet(b); });
     this.physics.add.overlap(this.player, this.pickups, (p, item) => this.collect(item));
-    // (Tasks 7–8 add colliders/overlaps here.)
+    this.physics.add.collider(this.enemies, this.ground, null, e => e.usesGround);
+    this.physics.add.collider(this.player, this.crates);
+    this.physics.add.overlap(this.playerBullets, this.enemies, (b, e) => this.bulletHits(b, e));
+    this.physics.add.overlap(this.playerBullets, this.crates, (b, c) => this.bulletHits(b, c));
+    this.physics.add.overlap(this.player, this.enemies, () => this.hurtPlayer());
+    // (Task 8 adds boss overlaps in startBoss().)
 
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.createHud();
@@ -77,10 +84,21 @@ export default class Level extends Phaser.Scene {
         case 'player_start': break;
         case 'boss_arena': this.arena = this.ctx.arena = new Phaser.Geom.Rectangle(o.x, o.y, o.width, o.height); break;
         case 'energy': this.spawnPickup('energy', o.x, mid); break;
-        // (Task 7 adds enemy and crate cases here.)
+        case 'soldier': this.addEnemy(this.enemies, new Soldier(this.ctx, o.x, o.y), o.y, props); break;
+        case 'drone': this.addEnemy(this.enemies, new Drone(this.ctx, o.x, mid), null, props); break;
+        case 'turret': this.addEnemy(this.enemies, new Turret(this.ctx, o.x, mid, props.facing), null, props); break;
+        case 'crate': this.addEnemy(this.crates, new Crate(this.ctx, o.x, o.y), o.y, props); break;
         default: console.warn(`Unknown object type "${type}" at ${o.x},${o.y}; skipped`);
       }
     }
+  }
+
+  addEnemy(group, e, groundY, props) {
+    group.add(e);
+    e.setupBody(); // after add(): group defaults overwrite body settings
+    if (props.drop) e.drop = props.drop;
+    if (groundY !== null) placeOnGround(e, groundY);
+    return e;
   }
 
   createHud() {
@@ -148,7 +166,10 @@ export default class Level extends Phaser.Scene {
   }
 
   onKilled(e) {
-    // Filled in by Task 7 (score, explosion, drops) and Task 8 (boss).
+    this.score += e.score;
+    this.explode(e.x, e.y);
+    if (e.drop) this.spawnPickup(e.drop, e.x, e.y - 8);
+    // (Task 8 adds boss handling here.)
   }
 
   explode(x, y) {

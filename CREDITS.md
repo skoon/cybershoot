@@ -11,7 +11,6 @@ Pascal Belisle: https://soundcloud.com/thetoadz
 
 ## Stand-ins
 - soldier = player sheet tinted 0xff5a7a
-- boss = player sheet tinted 0xb040ff, scale 2
 - music-boss = same track as music-level (Warped City ships a single track)
 - crate, pickups, bullets, HUD pip, shockwave, missile = generated solid-color rectangles (no art needed)
 

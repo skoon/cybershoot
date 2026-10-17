@@ -26,6 +26,7 @@ export default class Level extends Phaser.Scene {
     this.score = 0;
     this.arena = null;
     this.boss = null;
+    this.music = null; // previous run's (destroyed) sound
     this.controls = createInput(this);
 
     this.map = this.make.tilemap({ key: MAP.key });
@@ -64,12 +65,20 @@ export default class Level extends Phaser.Scene {
 
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.createHud();
-    this.music = this.sound.add('music-level', { loop: true, volume: 0.4 });
-    this.music.play();
+    this.playMusic('music-level');
+  }
+
+  // Music is OGG-only: Phaser skips loading it where the browser can't decode OGG, so tolerate a missing key.
+  playMusic(key) {
+    this.music?.stop();
+    this.music = this.cache.audio.exists(key) ? this.sound.add(key, { loop: true, volume: 0.4 }) : null;
+    this.music?.play();
   }
 
   spawnObjects() {
-    const objects = this.map.getObjectLayer('objects')?.objects ?? [];
+    // Raw Tiled JSON: Phaser's object parser drops `class`, which Tiled 1.9 writes instead of `type`.
+    const raw = this.cache.tilemap.get(MAP.key).data;
+    const objects = raw.layers.find(l => l.name === 'objects')?.objects ?? [];
     const typeOf = o => o.type || o.class; // Tiled 1.9 saved "class"
     const start = objects.find(o => typeOf(o) === 'player_start');
     if (!start) throw new Error('level1.json has no player_start object');
@@ -119,9 +128,7 @@ export default class Level extends Phaser.Scene {
       if (!pb.pierce) killBullet(pb);
       this.score += 25;
     });
-    this.music.stop();
-    this.music = this.sound.add('music-boss', { loop: true, volume: 0.4 });
-    this.music.play();
+    this.playMusic('music-boss');
   }
 
   createHud() {
@@ -218,6 +225,7 @@ export default class Level extends Phaser.Scene {
 
   endRun(victory, delayMs = 0) {
     if (this.ended) return;
+    this.updateHud(); // show the final score/energy during the end freeze
     this.ended = true;
     if (victory) {
       this.player.invulnUntil = Infinity;

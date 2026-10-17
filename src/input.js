@@ -27,7 +27,10 @@ export function createInput(scene) {
   let prev = null;
   return {
     read() {
-      const raw = readRaw(keys, scene.input.gamepad?.pad1);
+      // Phaser keeps a disconnected pad's last state (and connected=true); trust the browser's list instead.
+      const p = scene.input.gamepad?.pad1;
+      const pad = p && globalThis.navigator?.getGamepads?.()[p.index] ? p : null;
+      const raw = readRaw(keys, pad);
       const out = withEdges(raw, prev);
       prev = raw;
       return out;

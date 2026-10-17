@@ -23,7 +23,7 @@ export default class End extends Phaser.Scene {
     if (this.finalScore > 0 && this.finalScore >= best) this.add.text(cx, 160, 'NEW HIGH SCORE', { ...FONT, fontSize: '10px', color: '#ff2bd6' }).setOrigin(0.5);
     this.add.text(cx, GAME_H - 50, 'PRESS ENTER / START TO RETRY', { ...FONT, fontSize: '12px', color: '#00f0ff' }).setOrigin(0.5);
     this.controls = createInput(this);
-    this.readyAt = this.time.now + LOCKOUT_MS;
+    this.readyAt = this.game.loop.time + LOCKOUT_MS; // same clock as update(time); scene.time.now is stale in create()
   }
 
   update(time) {

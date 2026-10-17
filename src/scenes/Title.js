@@ -19,7 +19,7 @@ export default class Title extends Phaser.Scene {
     this.tweens.add({ targets: prompt, alpha: 0.2, duration: 600, yoyo: true, repeat: -1 });
     this.add.text(cx, 204, 'Z jump   X shoot   C dash   hold UP aim up   M mute', { ...FONT, fontSize: '8px' }).setOrigin(0.5);
     this.add.text(cx, 222, `BEST ${loadHighScore(safeStorage())}`, { ...FONT, fontSize: '10px' }).setOrigin(0.5);
-    this.add.text(cx, GAME_H - 10, CREDIT_LINE, { ...FONT, fontSize: '7px', color: '#7a8a99' }).setOrigin(0.5);
+    this.add.text(cx, GAME_H - 4, CREDIT_LINE, { ...FONT, fontSize: '7px', color: '#7a8a99', align: 'center', wordWrap: { width: GAME_W - 16 } }).setOrigin(0.5, 1);
     this.controls = createInput(this);
   }
 

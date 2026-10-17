@@ -3,6 +3,7 @@ import { GAME_W, GAME_H, MAX_ENERGY, applyEnergyPickup } from '../logic.js';
 import { TILESET, MAP, BACKGROUNDS } from '../assets.js';
 import { createInput } from '../input.js';
 import Player from '../player.js';
+import MechWalker from '../boss.js';
 import { Soldier, Drone, Turret, Crate } from '../enemies.js';
 import { createBulletGroup, killBullet, expireBullets } from '../weapons.js';
 
@@ -101,6 +102,22 @@ export default class Level extends Phaser.Scene {
     return e;
   }
 
+  startBoss() {
+    const a = this.arena;
+    const mh = this.map.heightInPixels;
+    this.physics.world.setBounds(a.x, 0, a.width, mh); // player collides with world bounds: can't leave
+    this.cameras.main.setBounds(a.x, 0, a.width, mh);
+    this.boss = new MechWalker(this.ctx, a.right - 64, 0);
+    this.physics.add.existing(this.boss);
+    this.boss.setupBody();
+    placeOnGround(this.boss, this.floorY(a.centerX));
+    this.physics.add.overlap(this.boss, this.playerBullets, (boss, b) => this.bulletHits(b, boss));
+    this.physics.add.overlap(this.player, this.boss, () => { if (!this.boss.dead) this.hurtPlayer(); });
+    this.music.stop();
+    this.music = this.sound.add('music-boss', { loop: true, volume: 0.4 });
+    this.music.play();
+  }
+
   createHud() {
     this.hudEnergy = Array.from({ length: MAX_ENERGY }, (_, i) => this.add.image(8 + i * 12, 8, 'hud-energy').setOrigin(0).setScrollFactor(0).setDepth(100));
     this.hudText = this.add.text(GAME_W - 8, 6, '', HUD_FONT).setOrigin(1, 0).setScrollFactor(0).setDepth(100);
@@ -124,7 +141,8 @@ export default class Level extends Phaser.Scene {
     this.player.update(c);
     expireBullets(this.playerBullets, time, this.cameras.main.worldView);
     expireBullets(this.enemyBullets, time, this.cameras.main.worldView);
-    // (Task 8 adds the boss trigger/update here.)
+    if (this.arena && !this.boss && this.player.x > this.arena.x + 48) this.startBoss();
+    this.boss?.update(time);
     for (const { bg, scrollFactor } of this.parallax) bg.tilePositionX = this.cameras.main.scrollX * scrollFactor;
     if (this.player.y > this.map.heightInPixels + 32) this.endRun(false, 300);
     this.updateHud();
@@ -169,7 +187,11 @@ export default class Level extends Phaser.Scene {
     this.score += e.score;
     this.explode(e.x, e.y);
     if (e.drop) this.spawnPickup(e.drop, e.x, e.y - 8);
-    // (Task 8 adds boss handling here.)
+    if (e === this.boss) {
+      for (let i = 1; i <= 4; i++) this.time.delayedCall(i * 200, () => this.explode(e.x + Phaser.Math.Between(-24, 24), e.y + Phaser.Math.Between(-24, 24)));
+      this.time.delayedCall(900, () => e.destroy());
+      this.endRun(true, 1600);
+    }
   }
 
   explode(x, y) {
@@ -194,6 +216,7 @@ export default class Level extends Phaser.Scene {
     if (victory) {
       this.player.invulnUntil = Infinity;
       this.player.body.setVelocityX(0);
+      if (this.player.inDash) this.player.endDash();
     } else {
       this.physics.pause();
       this.player.setVisible(false);

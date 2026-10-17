@@ -28,12 +28,18 @@ export default class MechWalker extends Enemy {
     this.body.setAllowGravity(false).setImmovable(true);
   }
 
+  // Red while telegraphing an attack; also survives the white hit-flash restore.
+  // (String(): Phaser's GameObject.state is the number 0 until enter() runs.)
+  restoreTint() {
+    if (String(this.state).startsWith('telegraph')) this.setTint(0xff4040);
+    else super.restoreTint();
+  }
+
   enter(state, ms) {
     this.state = state;
     this.stateUntil = this.scene.time.now + ms;
     this.body?.setVelocityX(0);
-    if (state.startsWith('telegraph')) this.setTint(0xff4040); // flash red before an attack
-    else this.restoreTint();
+    this.restoreTint();
     this.play(state === 'walk' || state === 'charge' ? 'boss-walk' : 'boss-idle', true);
   }
 

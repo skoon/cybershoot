@@ -113,6 +113,12 @@ export default class Level extends Phaser.Scene {
     placeOnGround(this.boss, this.floorY(a.centerX));
     this.physics.add.overlap(this.boss, this.playerBullets, (boss, b) => this.bulletHits(b, boss));
     this.physics.add.overlap(this.player, this.boss, () => { if (!this.boss.dead) this.hurtPlayer(); });
+    this.physics.add.overlap(this.playerBullets, this.enemyBullets, (pb, eb) => { // shoot down missiles
+      if (!pb.active || !eb.active || eb.texture.key !== 'missile') return;
+      killBullet(eb);
+      if (!pb.pierce) killBullet(pb);
+      this.score += 25;
+    });
     this.music.stop();
     this.music = this.sound.add('music-boss', { loop: true, volume: 0.4 });
     this.music.play();

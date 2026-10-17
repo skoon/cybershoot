@@ -1,11 +1,9 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H } from './logic.js';
-
-class Hello extends Phaser.Scene {
-  create() {
-    this.add.text(GAME_W / 2, GAME_H / 2, 'CYBERSHOOT', { fontFamily: 'monospace', fontSize: '24px', color: '#ff2bd6' }).setOrigin(0.5);
-  }
-}
+import Preload from './scenes/Preload.js';
+import Title from './scenes/Title.js';
+import Level from './scenes/Level.js';
+import End from './scenes/End.js';
 
 window.game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -15,5 +13,7 @@ window.game = new Phaser.Game({
   pixelArt: true,
   backgroundColor: '#05010d',
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [Hello],
+  physics: { default: 'arcade', arcade: { gravity: { y: 900 }, debug: new URLSearchParams(location.search).has('debug') } },
+  input: { gamepad: true },
+  scene: [Preload, Title, Level, End],
 });

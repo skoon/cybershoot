@@ -17,8 +17,8 @@ export const IMAGES = {
   crate: { w: 20, h: 40, color: 0x6b4f2a }, // tall enough that muzzle-height shots (y-2 from sprite centre) hit it
   'pickup-spread': { w: 10, h: 10, color: 0x00ff9c },
   'pickup-laser': { w: 10, h: 10, color: 0xff2bd6 },
-  'pickup-energy': { w: 8, h: 12, color: 0x00f0ff },
-  'hud-energy': { w: 8, h: 10, color: 0x00f0ff },
+  'pickup-energy':  'assets/sprites/energypack.png',
+  'hud-energy': 'assets/sprites/energypack.png',
   bullet: { w: 6, h: 2, color: 0x00f0ff },
   laser: { w: 14, h: 2, color: 0xff2bd6 },
   'enemy-bullet': { w: 4, h: 4, color: 0xff4040 },

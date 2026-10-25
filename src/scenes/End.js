@@ -28,6 +28,7 @@ export default class End extends Phaser.Scene {
 
   update(time) {
     const c = this.controls.read(); // read every frame so edge detection stays current during the lockout
-    if (time >= this.readyAt && c.startPressed) this.scene.start('Level');
+    // {} (not no argument): Phaser keeps the previous data when start() gets none, which would resume the last stage.
+    if (time >= this.readyAt && c.startPressed) this.scene.start('Level', {});
   }
 }

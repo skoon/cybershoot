@@ -3,8 +3,13 @@ export const GAME_W = 480;
 export const GAME_H = 270;
 export const START_ENERGY = 3;
 export const MAX_ENERGY = 4;
-export const OBJECT_TYPES = ['player_start', 'soldier', 'drone', 'turret', 'crate', 'energy', 'boss_arena'];
+export const OBJECT_TYPES = ['player_start', 'soldier', 'drone', 'turret', 'crate', 'energy', 'boss_arena', 'exit'];
 export const DROP_KINDS = ['spread', 'laser', 'energy'];
+
+// What happens when stage `index` (0-based) of `count` stages is cleared.
+export function afterStageClear(index, count) {
+  return index + 1 < count ? { next: index + 1 } : { victory: true };
+}
 
 const HIGH_SCORE_KEY = 'cybershoot.highscore';
 const EDGE_KEYS = ['jump', 'dash', 'start', 'mute'];

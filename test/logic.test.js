@@ -85,3 +85,15 @@ test('saveHighScore: throwing storage falls back to memory', () => {
   assert.equal(saveHighScore(broken, 900), 900);
   assert.equal(loadHighScore(broken), 900);
 });
+
+test('afterStageClear: next stage until the last, then victory', async () => {
+  const { afterStageClear } = await import('../src/logic.js');
+  assert.deepEqual(afterStageClear(0, 2), { next: 1 });
+  assert.deepEqual(afterStageClear(1, 2), { victory: true });
+  assert.deepEqual(afterStageClear(0, 1), { victory: true });
+});
+
+test('OBJECT_TYPES includes exit', async () => {
+  const { OBJECT_TYPES } = await import('../src/logic.js');
+  assert.ok(OBJECT_TYPES.includes('exit'));
+});

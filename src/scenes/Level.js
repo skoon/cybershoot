@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_W, GAME_H, MAX_ENERGY, applyEnergyPickup } from '../logic.js';
+import { GAME_W, GAME_H, MAX_ENERGY, applyEnergyPickup, afterStageClear } from '../logic.js';
 import { TILESET, LEVELS, BACKGROUNDS } from '../assets.js';
 import { createInput } from '../input.js';
 import Player from '../player.js';
@@ -19,17 +19,24 @@ export function placeOnGround(s, bottomY) {
 export default class Level extends Phaser.Scene {
   constructor() { super('Level'); }
 
+  // data = { level: stage index, carry: { score, energy, weapon } } from the previous stage; {} on a fresh run.
+  init(data) {
+    this.levelIndex = data?.level ?? 0;
+    this.carry = data?.carry ?? null;
+  }
+
   create() {
     this.sound.removeAll();
     this.physics.resume(); // in case a previous run ended with physics paused
     this.ended = false;
-    this.score = 0;
+    this.score = this.carry?.score ?? 0;
     this.arena = null;
     this.boss = null;
+    this.exit = null;
     this.music = null; // previous run's (destroyed) sound
     this.controls = createInput(this);
 
-    this.levelDef = LEVELS[0];
+    this.levelDef = LEVELS[this.levelIndex];
     this.map = this.make.tilemap({ key: this.levelDef.key });
     this.parallax = BACKGROUNDS.map(({ key, scrollFactor }) => {
       const bg = this.add.tileSprite(0, 0, GAME_W, GAME_H, key).setOrigin(0).setScrollFactor(0);
@@ -52,6 +59,10 @@ export default class Level extends Phaser.Scene {
     this.crates = this.physics.add.group({ runChildUpdate: true });
 
     this.spawnObjects();
+    if (this.carry) {
+      this.player.energy = this.carry.energy;
+      this.player.weapon = this.carry.weapon;
+    }
     this.physics.add.collider(this.player, this.ground);
     this.physics.add.collider(this.playerBullets, this.ground, b => killBullet(b));
     this.physics.add.collider(this.enemyBullets, this.ground, b => killBullet(b), b => !b.ignoreGround);
@@ -66,6 +77,7 @@ export default class Level extends Phaser.Scene {
 
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.createHud();
+    this.showBanner(`STAGE ${this.levelIndex + 1}  ${this.levelDef.name}`);
     this.playMusic('music-level');
   }
 
@@ -94,6 +106,7 @@ export default class Level extends Phaser.Scene {
       switch (type) {
         case 'player_start': break;
         case 'boss_arena': this.arena = this.ctx.arena = new Phaser.Geom.Rectangle(o.x, o.y, o.width, o.height); break;
+        case 'exit': this.addExit(o); break;
         case 'energy': this.spawnPickup('energy', o.x, mid); break;
         case 'soldier': this.addEnemy(this.enemies, new Soldier(this.ctx, o.x, o.y), o.y, props); break;
         case 'drone': this.addEnemy(this.enemies, new Drone(this.ctx, o.x, mid), null, props); break;
@@ -156,6 +169,7 @@ export default class Level extends Phaser.Scene {
     expireBullets(this.playerBullets, time, this.cameras.main.worldView);
     expireBullets(this.enemyBullets, time, this.cameras.main.worldView);
     if (this.arena && !this.boss && this.player.x > this.arena.x + 48) this.startBoss();
+    if (this.exit && this.player.x > this.exit.x + 16) this.stageClear();
     this.boss?.update(time);
     for (const { bg, scrollFactor } of this.parallax) bg.tilePositionX = this.cameras.main.scrollX * scrollFactor;
     if (this.player.y > this.map.heightInPixels + 32) this.endRun(false, 300);
@@ -204,7 +218,7 @@ export default class Level extends Phaser.Scene {
     if (e === this.boss) {
       for (let i = 1; i <= 4; i++) this.time.delayedCall(i * 200, () => this.explode(e.x + Phaser.Math.Between(-24, 24), e.y + Phaser.Math.Between(-24, 24)));
       this.time.delayedCall(900, () => e.destroy());
-      this.endRun(true, 1600);
+      this.stageClear(1600);
     }
   }
 
@@ -224,14 +238,44 @@ export default class Level extends Phaser.Scene {
     return this.map.heightInPixels;
   }
 
+  addExit(o) {
+    this.exit = new Phaser.Geom.Rectangle(o.x, o.y, o.width, o.height);
+    this.add.rectangle(o.x, o.y, o.width, o.height, 0x00f0ff, 0.12).setOrigin(0);
+    this.add.text(o.x + o.width / 2, 40, 'EXTRACTION', { ...HUD_FONT, color: '#00f0ff' }).setOrigin(0.5);
+  }
+
+  showBanner(text) {
+    const banner = this.add.text(GAME_W / 2, 60, text, { ...HUD_FONT, fontSize: '16px', color: '#ff2bd6' })
+      .setOrigin(0.5).setScrollFactor(0).setDepth(100);
+    this.tweens.add({ targets: banner, alpha: 0, delay: 1500, duration: 500, onComplete: () => banner.destroy() });
+  }
+
+  // Player stops, can't be hurt, and drops out of a dash (Level.update stops running once ended).
+  freezePlayer() {
+    this.player.invulnUntil = Infinity;
+    this.player.body.setVelocityX(0);
+    if (this.player.inDash) this.player.endDash();
+  }
+
+  // Boss killed or exit reached: go to the next stage, or to the victory screen after the last one.
+  stageClear(delayMs = 600) {
+    const after = afterStageClear(this.levelIndex, LEVELS.length);
+    if (after.victory) return this.endRun(true, delayMs);
+    if (this.ended) return;
+    this.updateHud();
+    this.ended = true;
+    this.freezePlayer();
+    this.showBanner('STAGE CLEAR');
+    const carry = { score: this.score, energy: this.player.energy, weapon: this.player.weapon };
+    this.time.delayedCall(delayMs + 800, () => this.scene.restart({ level: after.next, carry }));
+  }
+
   endRun(victory, delayMs = 0) {
     if (this.ended) return;
     this.updateHud(); // show the final score/energy during the end freeze
     this.ended = true;
     if (victory) {
-      this.player.invulnUntil = Infinity;
-      this.player.body.setVelocityX(0);
-      if (this.player.inDash) this.player.endDash();
+      this.freezePlayer();
     } else {
       this.physics.pause();
       this.player.setVisible(false);

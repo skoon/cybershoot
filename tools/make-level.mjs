@@ -1,37 +1,40 @@
-// One-shot generator for the starting level, written as ASCII segments.
-// After the first run, edit public/assets/maps/level1.json in Tiled instead;
-// re-running this script OVERWRITES Tiled edits.
+// Generates a Tiled JSON map from an ASCII level file.
+// usage: npm run level -- tools/levels/<key>.mjs   (the key must be in LEVELS in src/assets.js)
+// Re-running OVERWRITES the map, including any Tiled edits.
 //
 // Legend: '.' empty  '#' ground  P player_start  S soldier  Q soldier (drops energy)
 //         D drone  T turret (facing left)  E energy pickup
 //         C crate→spread  L crate→laser  c crate→energy
 // Rows are bottom-aligned (last row = map bottom); short rows are padded with '.'.
+// The LAST segment must be the ending: `arena: true` (exactly GAME_W wide) or `exit: true`.
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { relative, dirname } from 'node:path';
-import { TILESET, MAP } from '../src/assets.js';
+import { relative, dirname, basename, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { TILESET, LEVELS } from '../src/assets.js';
 import { GAME_W } from '../src/logic.js';
+
+const file = process.argv[2];
+if (!file) throw new Error('usage: npm run level -- tools/levels/<key>.mjs');
+const key = basename(file, '.mjs');
+const level = LEVELS.find(l => l.key === key);
+if (!level) throw new Error(`"${key}" is not in LEVELS (src/assets.js); add it there first`);
+const { SEGMENTS } = await import(pathToFileURL(resolve(file)).href);
 
 const H = 17;
 const T = TILESET.tileWidth;
-const G30 = '#'.repeat(30);
-const SEGMENTS = [
-  { w: 30, rows: ['...P................C.....S...', G30, G30, G30] },
-  { w: 30, rows: ['........D..........D..........', '', '', '', '..................S...........', '..............########........', '..............########........', '###...########################', '###...########################', '###...########################'] },
-  { w: 30, rows: ['....................##########', '.............E.....T##########', '............####....##########', '............####....##########', G30, G30, G30] },
-  { w: 30, rows: ['........D.........D...........', '', '', '', '####..........................', '####..##......................', '####..........................', '####....................S.....', '####......####################', '####......####################', '####......####################'] },
-  { w: 30, rows: ['...............T..............', '..............###.............', '..............###.............', '.....L...S....###.......Q.....', G30, G30, G30] },
-  { w: 30, rows: ['..........D...........D.......', '', '', '', '', '............####..............', '............####........S.....', '......####..####..############', '...c..####..####..############', G30, G30, G30] },
-  { w: 20, rows: ['..........E.........', '#'.repeat(20), '#'.repeat(20), '#'.repeat(20)] },
-  { w: 30, arena: true, rows: ['......###............###......', '', '', G30, G30, G30] },
-];
 const KINDS = {
   P: ['player_start'], S: ['soldier'], Q: ['soldier', { drop: 'energy' }], D: ['drone'],
   T: ['turret', { facing: 'left' }], E: ['energy'],
   C: ['crate', { drop: 'spread' }], L: ['crate', { drop: 'laser' }], c: ['crate', { drop: 'energy' }],
 };
 
+const last = SEGMENTS.at(-1);
+if (!last.arena && !last.exit) throw new Error('the last segment must have arena: true or exit: true');
+if (last.arena && last.exit) throw new Error('the last segment cannot be both arena and exit');
+if (SEGMENTS.slice(0, -1).some(s => s.arena || s.exit)) throw new Error('only the last segment may be an arena or exit');
+
 const grid = Array.from({ length: H }, () => []);
-let arena = null;
+let ending = null;
 for (const seg of SEGMENTS) {
   const x0 = grid[0].length;
   const top = H - seg.rows.length;
@@ -41,9 +44,9 @@ for (const seg of SEGMENTS) {
     if (line.length > seg.w) throw new Error(`row ${r} of segment at column ${x0} is longer than ${seg.w}`);
     grid[r].push(...line.padEnd(seg.w, '.'));
   }
-  if (seg.arena) arena = { x: x0 * T, width: seg.w * T };
+  if (seg === last) ending = { type: seg.arena ? 'boss_arena' : 'exit', x: x0 * T, width: seg.w * T };
 }
-if (!arena || arena.width !== GAME_W) throw new Error(`boss arena must be exactly ${GAME_W}px wide`);
+if (ending.type === 'boss_arena' && ending.width !== GAME_W) throw new Error(`boss arena must be exactly ${GAME_W}px wide`);
 
 const W = grid[0].length;
 const data = [];
@@ -64,9 +67,9 @@ for (let r = 0; r < H; r++) {
     objects.push({ id: nextId++, name: '', type: kind[0], x: c * T + T / 2, y: (r + 1) * T, width: 0, height: 0, rotation: 0, visible: true, point: true, properties: props(kind[1]) });
   }
 }
-objects.push({ id: nextId++, name: '', type: 'boss_arena', x: arena.x, y: 0, width: arena.width, height: H * T, rotation: 0, visible: true, properties: [] });
+objects.push({ id: nextId++, name: '', type: ending.type, x: ending.x, y: 0, width: ending.width, height: H * T, rotation: 0, visible: true, properties: [] });
 
-const out = 'public/' + MAP.path;
+const out = 'public/' + level.path;
 const collides = [...new Set([TILESET.solidTop, TILESET.solidFill])].map(id => ({ id, properties: [{ name: 'collides', type: 'bool', value: true }] }));
 const map = {
   type: 'map', version: '1.10', tiledversion: '1.11.0', orientation: 'orthogonal', renderorder: 'right-down',

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H, MAX_ENERGY, applyEnergyPickup } from '../logic.js';
-import { TILESET, MAP, BACKGROUNDS } from '../assets.js';
+import { TILESET, LEVELS, BACKGROUNDS } from '../assets.js';
 import { createInput } from '../input.js';
 import Player from '../player.js';
 import MechWalker from '../boss.js';
@@ -29,7 +29,8 @@ export default class Level extends Phaser.Scene {
     this.music = null; // previous run's (destroyed) sound
     this.controls = createInput(this);
 
-    this.map = this.make.tilemap({ key: MAP.key });
+    this.levelDef = LEVELS[0];
+    this.map = this.make.tilemap({ key: this.levelDef.key });
     this.parallax = BACKGROUNDS.map(({ key, scrollFactor }) => {
       const bg = this.add.tileSprite(0, 0, GAME_W, GAME_H, key).setOrigin(0).setScrollFactor(0);
       bg.setTileScale(GAME_H / this.textures.get(key).getSourceImage().height);
@@ -77,11 +78,11 @@ export default class Level extends Phaser.Scene {
 
   spawnObjects() {
     // Raw Tiled JSON: Phaser's object parser drops `class`, which Tiled 1.9 writes instead of `type`.
-    const raw = this.cache.tilemap.get(MAP.key).data;
+    const raw = this.cache.tilemap.get(this.levelDef.key).data;
     const objects = raw.layers.find(l => l.name === 'objects')?.objects ?? [];
     const typeOf = o => o.type || o.class; // Tiled 1.9 saved "class"
     const start = objects.find(o => typeOf(o) === 'player_start');
-    if (!start) throw new Error('level1.json has no player_start object');
+    if (!start) throw new Error(`${this.levelDef.key}.json has no player_start object`);
     this.player = new Player(this, start.x, start.y, this.playerBullets);
     placeOnGround(this.player, start.y);
     this.ctx = { scene: this, player: this.player, ground: this.ground, enemyBullets: this.enemyBullets, arena: null, onKilled: e => this.onKilled(e) };

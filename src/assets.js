@@ -67,7 +67,10 @@ export const TILESET = {
   solidTop: 271, solidFill: 28,
 };
 
-export const MAP = { key: 'level1', path: 'assets/maps/level1.json' };
+// Stage order. Generate a map with `npm run level -- tools/levels/<key>.mjs`, or edit it in Tiled.
+export const LEVELS = [
+  { key: 'level1', path: 'assets/maps/level1.json', name: 'ROOFTOPS' },
+];
 
 export const BACKGROUNDS = [
   { key: 'bg-far', scrollFactor: 0.05 },

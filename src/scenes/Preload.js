@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H } from '../logic.js';
-import { SHEETS, IMAGES, AUDIO, ANIMS, TILESET, MAP } from '../assets.js';
+import { SHEETS, IMAGES, AUDIO, ANIMS, TILESET, LEVELS } from '../assets.js';
 
 export default class Preload extends Phaser.Scene {
   constructor() { super('Preload'); }
@@ -13,7 +13,7 @@ export default class Preload extends Phaser.Scene {
     for (const [key, v] of Object.entries(IMAGES)) if (typeof v === 'string') this.load.image(key, v);
     for (const [key, path] of Object.entries(AUDIO)) this.load.audio(key, path);
     this.load.image(TILESET.key, TILESET.path);
-    this.load.tilemapTiledJSON(MAP.key, MAP.path);
+    for (const l of LEVELS) this.load.tilemapTiledJSON(l.key, l.path);
   }
 
   create() {

@@ -22,6 +22,15 @@ test('checker: a 4-tile wall blocks, a 3-tile step does not', () => {
   assert.deepEqual(checkLevel(level({ w: 10, rows: ['.....#####', '.....#####', '.....#####', G(10), G(10), G(10)] })), []);
 });
 
+test('checker: the map top is a ceiling, so jumps between high ledges are short', () => {
+  // Stairs up to ledges whose tops are row 5 (feet row 4): only ~2 rows of head room below the map top.
+  const stairs = { w: 8, rows: ['......##', '......##', '....####', '....####', '..######', '..######', G(8), G(8), G(8), G(8), G(8)] };
+  const ledges = gap => ({ w: 10 + gap, rows: Array(12).fill('#####' + '.'.repeat(gap) + '#####') });
+  assert.deepEqual(checkLevel(level(stairs, ledges(3))), []);
+  assert.match(issues(level(stairs, ledges(5))), /unreachable/); // the same 5-wide gap is fine at floor level
+  assert.deepEqual(checkLevel(level({ w: 15, rows: ['', '#####.....#####', '#####.....#####', '#####.....#####'] })), []);
+});
+
 test('checker: misplaced objects are reported', () => {
   const p = issues(level({ w: 10, rows: ['....E', '', '', '', '', '...C.T....', '', G(10), G(10), G(10)] }));
   assert.match(p, /energy E .* out of reach/);

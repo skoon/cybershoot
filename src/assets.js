@@ -70,6 +70,11 @@ export const TILESET = {
 // Stage order. Generate a map with `npm run level -- tools/levels/<key>.mjs`, or edit it in Tiled.
 export const LEVELS = [
   { key: 'level1', path: 'assets/maps/level1.json', name: 'ROOFTOPS' },
+  { key: 'market', path: 'assets/maps/market.json', name: 'NEON MARKET' },
+  { key: 'sewer', path: 'assets/maps/sewer.json', name: 'SEWER RUN' },
+  { key: 'maglev', path: 'assets/maps/maglev.json', name: 'MAGLEV YARD' },
+  { key: 'spire', path: 'assets/maps/spire.json', name: 'DATA SPIRE' },
+  { key: 'core', path: 'assets/maps/core.json', name: 'CORP CORE' },
   { key: 'level2', path: 'assets/maps/level2.json', name: 'EXTRACTION' },
 ];
 

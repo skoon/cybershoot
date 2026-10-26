@@ -9,6 +9,10 @@ const H = 17;
 // Max column distance (centre to centre) for a jump rising `rise` tiles; drops use REACH[0].
 // Physics allows ~1 column more at each height; the margin keeps jumps comfortable.
 const REACH = [6, 5, 5, 4];
+// A ceiling cuts the jump short. Indexed by clear rows above the head at take-off (capped at 4):
+// the highest rise still possible, and the reach of a level jump under that ceiling.
+const RISE_UNDER = [0, 0, 1, 2, 3];
+const REACH_UNDER = [1, 3, 4, 5, 6];
 
 export function buildGrid(segments) {
   const grid = Array.from({ length: H }, () => []);
@@ -24,8 +28,9 @@ export function checkLevel(segments) {
   const { grid, ending } = buildGrid(segments);
   const W = grid[0].length;
   const problems = [];
-  // Map sides are walls (world bounds); above the map is open sky; below is the pit.
-  const solid = (r, c) => (c < 0 || c >= W) || (r >= 0 && r < H && grid[r][c] === '#');
+  // Map sides and top are walls (world bounds collide there); below the map is the pit.
+  const solid = (r, c) => (c < 0 || c >= W || r < 0) || (r < H && grid[r][c] === '#');
+  const headRoom = (r, c) => { let k = 0; while (k < 4 && !solid(r - 3 - k, c)) k++; return k; };
   // Feet in row r, body rows r-2..r (the player is ~3 tiles tall).
   const standable = (r, c) => c >= 0 && c < W && r >= 0 && r < H - 1 && solid(r + 1, c) && ![r, r - 1, r - 2].some(y => solid(y, c));
   const cells = ch => grid.flatMap((row, r) => row.flatMap((x, c) => (x === ch ? [[r, c]] : [])));
@@ -47,15 +52,16 @@ export function checkLevel(segments) {
         if (seen.has(key(r2, c2)) || !standable(r2, c2)) continue;
         const rise = r - r2;
         const dc = Math.abs(c2 - c);
-        if (dc > REACH[Math.max(0, rise)]) continue;
+        const k = headRoom(r, c);
+        const walkOrFall = k === 0 && (rise === 0 ? dc <= 1 : rise < 0 && dc <= 2);
+        if (!walkOrFall && (rise > RISE_UNDER[k] || dc > Math.min(REACH[Math.max(0, rise)], REACH_UNDER[k]))) continue;
         // Columns jumped over must leave room for the body near the top of the arc.
         const top = Math.min(r, r2);
         let blocked = false;
         for (let cc = Math.min(c, c2) + 1; cc < Math.max(c, c2) && !blocked; cc++) {
           blocked = [top - 2, top - 3, top - 4].some(y => solid(y, cc));
         }
-        // A jump needs head room above the take-off cell.
-        if (blocked || (dc > 1 || rise > 0) && solid(r - 3, c)) continue;
+        if (blocked) continue;
         seen.add(key(r2, c2));
         queue.push([r2, c2]);
       }
@@ -92,7 +98,7 @@ export function checkLevel(segments) {
   return problems;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   let failed = false;
   for (const file of process.argv.slice(2)) {
     const { SEGMENTS } = await import(pathToFileURL(resolve(file)).href);

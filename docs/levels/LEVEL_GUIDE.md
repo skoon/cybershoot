@@ -1,23 +1,18 @@
 # Cybershoot Level Creation Guide
 
-> **Status:** this guide describes multi-stage levels, which require the level-progression plan in
-> `docs/superpowers/plans/2026-10-24-level-progression.md`. Until that plan is implemented, the game
-> has only `level1`: it loads one map, and beating the boss ends the run. Sections marked
-> **(needs progression)** describe features that don't exist before that plan is done.
-
 ## 1. How a level is made
 
 A level is a Tiled JSON map in `public/assets/maps/<key>.json`. You can make one in either of two ways:
 
 | Way | When to use | How |
 |---|---|---|
-| **ASCII segments** (recommended) | Blocking out layout, enemies, pacing | Write `tools/levels/<key>.mjs`, then run `npm run level -- tools/levels/<key>.mjs` **(needs progression)** |
+| **ASCII segments** (recommended) | Blocking out layout, enemies, pacing | Write `tools/levels/<key>.mjs`, then run `npm run level -- tools/levels/<key>.mjs` |
 | **Tiled editor** | Decoration, extra tile art, small fixes | Open the JSON in Tiled, edit, and save as JSON |
 
 The generator **overwrites** the JSON. Once you decorate a map in Tiled, stop regenerating it, or keep
 your Tiled edits somewhere safe first.
 
-Stage order and names live in `LEVELS` in `src/assets.js` **(needs progression)**:
+Stage order and names live in `LEVELS` in `src/assets.js`:
 
 ```js
 export const LEVELS = [
@@ -35,9 +30,9 @@ back to stage 1 with a score of 0.
 - **Exactly one `player_start`**, left of the stage's ending.
 - **Exactly one ending, in the last segment:** either
   - `boss_arena`: a segment marked `arena: true`, exactly **30 columns** (480 px, one screen) wide. The mech boss spawns there and the camera locks; or
-  - `exit`: a segment marked `exit: true`. Walking into it clears the stage **(needs progression)**.
+  - `exit`: a segment marked `exit: true`. Walking into it clears the stage.
 - **Only known object types:** `player_start`, `soldier`, `drone`, `turret`, `crate`, `energy`,
-  `boss_arena`, and `exit` **(needs progression)**.
+  `boss_arena`, and `exit`.
 - **Only known drop values:** `spread`, `laser`, `energy`.
 - **Tiled:** embed the tileset (it must not be an external `.tsx`) and keep it named `cyber`. Keep the
   layers named `ground` (tiles) and `objects` (objects).
@@ -95,6 +90,9 @@ dash 320 for 200 ms.
 | Falling | unlimited | — | Drops are always safe unless they land in a pit |
 
 - A platform floating 4 or more tiles above the floor is **unreachable** from the floor.
+- **The top of the map is a ceiling.** The world bounds collide there, so a full jump needs 4 clear rows above
+  the player's head (feet in row 6 or lower). With feet in row 4 there is room for only ~2 rows, which allows
+  a rise of at most 1 tile and gaps of at most 2–3 columns. Keep big jumps at feet row ≥ 6 (ledge tops at row ≥ 7).
 - A crate is 20×40 px (2.5 tiles tall), so the player has to jump over it or shoot it. Never put one under
   a ceiling lower than 4 tiles, or in a 1-tile corridor.
 - The player is about 46 px (3 tiles) tall, so keep at least 3 empty rows above any floor the player
@@ -130,13 +128,16 @@ Enemies wake up when they come within 32 px of the right edge of the screen, so 
 
 1. Add the entry to `LEVELS` in `src/assets.js`. Its key must match the file name.
 2. Write `tools/levels/<key>.mjs`.
-3. Run `npm run level -- tools/levels/<key>.mjs`. It prints the size and object count. Fix anything it
+3. Run `node tools/check-level.mjs tools/levels/<key>.mjs`. It proves the ending and every energy pickup are
+   reachable under the movement budget (including ceilings), and checks crate, turret and drone placement.
+   `npm test` runs it for every level in `LEVELS`.
+4. Run `npm run level -- tools/levels/<key>.mjs`. It prints the size and object count. Fix anything it
    throws (a row that's too long, an unknown character, a missing or misplaced ending).
-4. Run `npm test`. `test/level.test.js` checks every map in `LEVELS`.
-5. Playtest with `npm run dev`. Open `http://localhost:5173/?debug` to see hitboxes. To jump straight to
+5. Run `npm test`. `test/level.test.js` checks every map in `LEVELS`.
+6. Playtest with `npm run dev`. Open `http://localhost:5173/?debug` to see hitboxes. To jump straight to
    a stage, open the browser console and run `game.scene.start('Level', { level: 1 })` (stages start at
    index 0).
-6. Optionally, decorate the map in Tiled. After that, don't regenerate it.
+7. Optionally, decorate the map in Tiled. After that, don't regenerate it.
 
 ## 8. Common mistakes
 

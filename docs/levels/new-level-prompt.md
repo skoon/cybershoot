@@ -1,8 +1,6 @@
 # Prompt: create a new Cybershoot level
 
 Copy the block below into a new Claude Code session in this repo, and fill in the `{{…}}` fields.
-It needs the level-progression plan (`docs/superpowers/plans/2026-10-24-level-progression.md`)
-to be implemented already.
 
 ---
 
@@ -30,12 +28,13 @@ Do this:
 3. Add { key: '{{level3}}', path: 'assets/maps/{{level3}}.json', name: '{{SEWERS}}' } to LEVELS in
    src/assets.js, at the requested position.
 4. Run `npm run level -- tools/levels/{{level3}}.mjs`, then `npm test`. Fix every error.
-5. Check every jump yourself against the movement budget. For each pit, step, and floating
-   platform/pickup on the required path, write one line with its size in tiles and say why it is
-   reachable. Do the same check for every crate's clearance.
+5. Run `node tools/check-level.mjs tools/levels/{{level3}}.mjs` and iterate until it prints `ok`. It proves the
+   ending and every energy pickup are reachable (including head room under ceilings and the map top) and
+   checks object placement. Then re-read the stage against the pacing rules (§6), which it does not check.
 6. If you can open a browser, start `npm run dev` and run
    `game.scene.start('Level', { level: <index> })` in the console. Then walk the stage and confirm there
-   are no console errors and that no enemy is floating or buried.
+   are no console errors and that no enemy is floating or buried. (A stage forced from the console can lose energy
+   right away; judge the layout there, not the damage.)
 7. Commit: tools/levels/{{level3}}.mjs, public/assets/maps/{{level3}}.json, src/assets.js.
 
 Constraints: don't change game code (src/*.js other than the LEVELS entry), the tile art, or the
